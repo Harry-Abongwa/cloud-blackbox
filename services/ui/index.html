@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Cloud Blackbox – Security Dashboard</title>
+
+<style>
+body {
+  margin:0;
+  font-family: Inter, system-ui;
+  background: linear-gradient(180deg,#061327,#0d1c36);
+  color:#e6edf3;
+}
+
+.header {
+  padding:30px 40px 10px 40px;
+}
+
+h1 {
+  margin:0;
+  font-size:28px;
+}
+
+.controls {
+  padding:20px 40px;
+  display:flex;
+  gap:10px;
+}
+
+select,input,button {
+  padding:10px;
+  border-radius:6px;
+  border:none;
+}
+
+button {
+  background:#2563eb;
+  color:white;
+  cursor:pointer;
+}
+
+.dashboard {
+  padding:0 40px 20px 40px;
+  display:flex;
+  gap:20px;
+}
+
+.metric {
+  background:#12294f;
+  padding:20px;
+  border-radius:10px;
+  min-width:200px;
+}
+
+.metric h2 {
+  margin:0;
+  font-size:22px;
+}
+
+.metric span {
+  font-size:12px;
+  opacity:.6;
+}
+
+.container {
+  padding:20px 40px 60px 40px;
+}
+
+.card {
+  background:#162b4d;
+  padding:18px;
+  margin-bottom:15px;
+  border-radius:10px;
+  border-left:6px solid #ef4444;
+  transition:all .2s ease;
+  position:relative;
+}
+
+.card:hover {
+  background:#1d3560;
+}
+
+.badge {
+  background:#ef4444;
+  padding:3px 8px;
+  border-radius:6px;
+  font-size:12px;
+  margin-right:8px;
+}
+
+.copyBtn {
+  position:absolute;
+  right:15px;
+  top:15px;
+  font-size:12px;
+  background:#334155;
+  padding:5px 8px;
+  border-radius:5px;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h1>Cloud Blackbox – Security Incident Dashboard</h1>
+</div>
+
+<div class="controls">
+  <select id="severity">
+    <option>High</option>
+    <option>Medium</option>
+    <option>Low</option>
+  </select>
+
+  <input type="datetime-local" id="from" />
+  <button onclick="load()">Search</button>
+</div>
+
+<div class="dashboard">
+  <div class="metric">
+    <h2 id="total">0</h2>
+    <span>Total Incidents</span>
+  </div>
+  <div class="metric">
+    <h2 id="uniqueUsers">0</h2>
+    <span>Unique Users</span>
+  </div>
+  <div class="metric">
+    <h2 id="ips">0</h2>
+    <span>Unique IPs</span>
+  </div>
+</div>
+
+<div class="container" id="results"></div>
+
+<script>
+
+const API="https://njohsn5vtk.execute-api.us-east-1.amazonaws.com";
+
+async function load(){
+  const severity=document.getElementById("severity").value;
+  const from=document.getElementById("from").value;
+
+  let url=`${API}/incidents?severity=${severity}&includeRaw=true`;
+
+  if(from){
+    const iso=new Date(from).toISOString();
+    url+=`&from=${iso}`;
+  }
+
+  const res=await fetch(url);
+  const data=await res.json();
+
+  const container=document.getElementById("results");
+  container.innerHTML="";
+
+  if(!data.items){
+    container.innerHTML="<p>No data</p>";
+    return;
+  }
+
+  document.getElementById("total").innerText=data.count;
+
+  const users=new Set();
+  const ips=new Set();
+
+  data.items
+    .sort((a,b)=> new Date(b.eventTime)-new Date(a.eventTime))
+    .forEach(item=>{
+
+    users.add(item.userIdentity);
+    ips.add(item.sourceIPAddress);
+
+    const div=document.createElement("div");
+    div.className="card";
+
+    div.innerHTML=`
+      <span class="badge">${item.severity}</span>
+      <b>${item.eventName}</b><br/>
+      User: ${item.userIdentity}<br/>
+      Time: ${item.eventTime}<br/>
+      IP: ${item.sourceIPAddress}<br/>
+      <span class="copyBtn" onclick='copyRaw(${JSON.stringify(item.rawEvent)})'>Copy Raw</span>
+    `;
+
+    container.appendChild(div);
+  });
+
+  document.getElementById("uniqueUsers").innerText=users.size;
+  document.getElementById("ips").innerText=ips.size;
+}
+
+function copyRaw(data){
+  navigator.clipboard.writeText(data);
+  alert("Raw event copied");
+}
+
+load();
+</script>
+
+</body>
+</html>
