@@ -1,0 +1,1 @@
+{"errorMessage": "Syntax error in module 'handler': invalid syntax (handler.py, line 86)", "errorType": "Runtime.UserCodeSyntaxError", "requestId": "", "stackTrace": ["  File \"/var/task/handler.py\" Line 86\n                return {\"statusCode\":400,\"body\":\"{\"error\":\"severity parameter required\"}\"}\n"]}

@@ -1,0 +1,19 @@
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/crash.log
+
+# Python
+**/__pycache__/
+**/*.pyc
+.venv/
+
+# Node/React
+**/node_modules/
+**/dist/
+**/.next/
+
+# OS
+.DS_Store

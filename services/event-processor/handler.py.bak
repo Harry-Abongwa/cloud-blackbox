@@ -1,0 +1,60 @@
+import json
+import boto3
+import os
+from datetime import datetime
+
+dynamodb = boto3.resource("dynamodb")
+TABLE_NAME = os.environ.get("INCIDENT_TABLE")
+
+# Sensitive IAM actions we care about
+SENSITIVE_ACTIONS = {
+    "AttachUserPolicy": "High",
+    "PutUserPolicy": "High",
+    "CreateAccessKey": "Critical",
+    "DeleteTrail": "Critical",
+    "UpdateAssumeRolePolicy": "High",
+    "CreateUser": "Medium",
+    "DeleteUser": "High"
+}
+
+def classify_action(event_name):
+    if event_name in SENSITIVE_ACTIONS:
+        return True, SENSITIVE_ACTIONS[event_name]
+    return False, "Low"
+
+def lambda_handler(event, context):
+    detail = event.get("detail", {})
+    event_name = detail.get("eventName", "Unknown")
+    user_identity = detail.get("userIdentity", {}).get("arn", "Unknown")
+    source_ip = detail.get("sourceIPAddress", "Unknown")
+    event_time = detail.get("eventTime", datetime.utcnow().isoformat())
+    event_id = detail.get("eventID", "unknown-event-id")
+
+    is_sensitive, severity = classify_action(event_name)
+
+    # Ignore non-sensitive IAM calls
+    if not is_sensitive:
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"message": "Non-sensitive event ignored"})
+        }
+
+    table = dynamodb.Table(TABLE_NAME)
+
+    item = {
+        "incidentId": event_id,
+        "eventTime": event_time,
+        "eventName": event_name,
+        "userIdentity": user_identity,
+        "sourceIPAddress": source_ip,
+        "severity": severity,
+        "isSensitive": True,
+        "rawEvent": json.dumps(detail)
+    }
+
+    table.put_item(Item=item)
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps({"message": "Sensitive incident recorded"})
+    }
